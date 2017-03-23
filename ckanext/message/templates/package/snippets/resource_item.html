@@ -1,0 +1,102 @@
+{% ckan_extends %}
+
+{% if "SEED Web Map" in res.format and c.pkg_dict.map_type and c.pkg_dict.map_service_id and c.pkg_dict.layer_id %}
+    {% set mapurl="http://"+(request.url.split("/")[2]|replace("ckan", "geo")|replace("datasets", "geo"))+"/EDP_Public_Viewer/Index.html?viewer=EDP_Public_Viewer&run=ViewMap&url="+(c.pkg_dict.map_type)+":map_service_id="+(c.pkg_dict.map_service_id|replace("&", "+"))+";layer_id="+(c.pkg_dict.layer_id|replace("&", "+")) -%}
+{% else %}
+    {% set mapurl="#" %}
+    {% set display_map_text = "" %}
+{% endif %}
+{% set SEEDdomain = (request.url.split("/")[2]|replace("ckan.", "")) %}
+
+
+{% block  resource_item_description %}
+{{ super() }}
+
+{#{% resource 'ckanext-message/message_modal.css' %}#}
+{% set exclude_formats = ['SEED Web Map', 'seed web map', 'PDF', 'pdf', 'DOC', 'doc', 'HTML', 'html', 'URL', 'url', 'TXT', 'txt', 'TEXT', 'text'] %}
+{% if ("Data Quality Statement" not in res.name and "Metadata" not in res.name) and res.format not in exclude_formats %}
+
+<!-- Modal -->
+<div class="modal fade" id="{{ res.position }}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h3 class="modal-title" id="myModalLabel">Download Resource</h3>
+      </div>
+      <div class="modal-body">
+       <p>This dataset is available under licence. Before using the data, please refer to the Metadata Statement for information about licensing conditions and attribution.</p>
+       {#<p>This dataset is available under licence as stated in the Metadata Statement.
+       Please read the licence conditions in the resource file before using the data.</p>
+       <p>Unless otherwise stated, please attribute "New South Wales Government (Office of Environment and Heritage)" in any publications using this data.</p> #}
+       {#<div class="alert alert-warning" role="alert"><p><b>Note: </b>This process may take several minutes depending on your internet speed and device performance. 
+        Downloading large resources over mobile network may incur excess usage charges.
+        Please contact your service provider to find out more about your data cap and usage restrictions.</p></div>#}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-dismiss="modal">Dismiss</button>
+        <a type="button" href="{{ res.url }}" target="_blank" class="custom-close btn btn-primary" >Acknowledge and Proceed to {{res.format }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+
+{% block  resource_item_explore_links %}
+  {#{{ super() }}#} 
+  {# custom app here #}
+     <li>
+        <a href="{{ url }}" alt="More Information">
+          {#{% if res.has_views %}
+            <i class="icon-bar-chart"></i>
+            {{ _('Preview') }}
+          {% else %}#}
+            <i class="icon-info-sign"></i>
+            {{ _('More information') }}
+          {#{% endif %}#}
+        </a>
+      </li>
+      {% if res.url and h.is_url(res.url) %}
+       <li>
+       {# if data needs a popup #}
+       {#{% if ("Data Quality Statement" not in res.name and "SEED Web Map" not in res.format and "Metadata" not in res.name and "PDF" not in res.format
+          and "DOC" not in res.format and "HTML" not in res.format and "URL" not in res.format) 
+        %}#}
+       {% set exclude_formats = ['SEED Web Map', 'seed web map', 'PDF', 'pdf', 'DOC', 'doc', 'HTML', 'html', 'URL', 'url', 'TXT', 'txt', 'TEXT', 'text'] %}
+       {% if ("Data Quality Statement" not in res.name and "Metadata" not in res.name) and res.format not in exclude_formats %}
+       <a type="button" class="" data-toggle="modal" data-target="{{"#"+res.position|string }}"><i class="icon-download"></i>
+            {{ _('Go To')+' '+res.format }}</a>
+       {# only display link if resource is seed web map and is properly configured#}
+       {% elif "SEED Web Map" in res.format and c.pkg_dict.map_type and c.pkg_dict.map_service_id and c.pkg_dict.layer_id %}
+       <a href ="{{ mapurl }}" class="resource-url-analytics">
+         <i class="icon-external-link"></i>
+            {{ _('Go To')+' '+res.format }}
+       </a>
+       {# if SEED Web Map is not properly configured #}
+       {% elif ("SEED Web Map" in res.format and c.pkg_dict.map_type=="") or ("SEED Web Map" in res.format and c.pkg_dict.map_service_id=="") or
+       ("SEED Web Map" in res.format and c.pkg_dict.layer_id=="") %} 
+       {# else open in new tab without popup - metadata not in same domain #}
+       {% elif SEEDdomain not in res.url %}
+       <a href ="javaScript:void(0)" onclick="window.open({{ "'"+res.url|string+"'"}}, ''); return false"  class="resource-url-analytics">
+         <i class="icon-external-link"></i>
+            {{ _('Go To')+' '+res.format }}
+       </a>
+       {% else %}
+       <a href ="{{ res.url }}" class="resource-url-analytics">
+         <i class="icon-external-link"></i>
+            {{ _('Go To')+' '+res.format }}
+       </a>
+     {% endif %}
+</li>
+{% endif %}
+{% if can_edit %}
+      <li>
+        <a href="{{ h.url_for(controller='package', action='resource_edit', id=pkg.name, resource_id=res.id) }}">
+          <i class="icon-edit"></i>
+          {{ _('Edit') }}
+        </a>
+      </li>
+      {% endif %}
+{% endblock %}

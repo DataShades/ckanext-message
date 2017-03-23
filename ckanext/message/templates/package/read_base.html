@@ -1,0 +1,7 @@
+{% ckan_extends %}
+ {% block help_button %}
+   {#{{ super() }}#}
+   {# how to find out what content is currently being displayed? #}
+   <a type="button" href="{{"http://"+(request.url.split("/")[2]|replace("ckan.", ""))+"/edphome/using-seed/about-datasets.aspx"}}" 
+   target="_blank" style="color:#505050" class="btn pull-right"><i class="icon-info-sign"></i>How to View Datasets</a>
+{% endblock %}

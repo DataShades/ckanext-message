@@ -1,0 +1,170 @@
+{% ckan_extends %}
+
+{% set res = c.resource %}
+{% set exclude_formats = ['SEED Web Map', 'seed web map', 'PDF', 'pdf', 'DOC', 'doc', 'HTML', 'html', 'URL', 'url', 'TXT', 'txt', 'TEXT', 'text'] %}
+
+{% if "SEED Web Map" in res.format and c.pkg_dict.map_type and c.pkg_dict.map_service_id and c.pkg_dict.layer_id %}
+    {% set mapurl="http://"+(request.url.split("/")[2]|replace("ckan", "geo")|replace("datasets", "geo"))+"/EDP_Public_Viewer/Index.html?viewer=EDP_Public_Viewer&run=ViewMap&url="+(c.pkg_dict.map_type)+":map_service_id="+(c.pkg_dict.map_service_id|replace("&", "+"))+";layer_id="+(c.pkg_dict.layer_id|replace("&", "+")) -%}
+    {% set displayurl=mapurl %}
+{% elif ("SEED Web Map" in res.format and c.pkg_dict.map_type=="") or ("SEED Web Map" in res.format and c.pkg_dict.map_service_id) 
+    or ( "SEED Web Map" in res.format and c.pkg_dict.layer_id) %}
+    {% set mapurl="#" %}
+    {% set displayurl="This resource has not been configured on SEED Web Map. Please contact the Data Custodian for more information" %}
+{% endif %}
+{# get the rest of the url domain string without "ckan" #}
+{% set SEEDdomain = (request.url.split("/")[2]|replace("ckan.", "")) %}
+
+{% block help_button %}
+   {{ super() }}
+   {# how to find out what content is currently being displayed? #}
+   {#<a type="button" href="{{"http://"+SEEDdomain+"/edphome/using-seed/about-datasets.aspx"}}" 
+   target="_blank" style="color:#505050" class="btn pull-right">
+   <i class="icon-info-sign"></i>How to View Datasets</a>#}
+{% endblock %}
+
+{% block resource_content %}
+   {% block resource_read_title %}
+      <h1 class="page-heading">{{ h.resource_display_name(res) | truncate(999) }}</h1>
+   {% endblock %}
+
+   {% block resource_read_url %}
+          {% if res.url and h.is_url(res.url) %}
+                  {# data is likely a raw download #}
+                  {% if ("Data Quality Statement" not in res.name and "Metadata" not in res.name) and res.format not in exclude_formats %}
+                  <p class="" style="word-wrap: break-word">{{ _('URL:') }} <a data-toggle="modal" target="_blank" data-target="#resource_read_modal">{{ res.url }}</a></p>
+                  {#data is seed web map #}
+                 {% elif "SEED Web Map" in res.format %}
+                 <p class="" style="word-wrap: break-word">{{ _('URL:') }} <a href="{{mapurl}}">
+                    {{displayurl}}</a></p>
+                 {# data is metadata - javascript will decide whether it opens in new tab #}
+                 {% else %} 
+                 <p class="" style="word-wrap: break-word">{{ _('URL:') }} <a href="{{ res.url }}" title="{{ res.url }}">{{ res.url }}</a></p>
+
+             {% endif %}
+          {% elif res.url %}
+              <p class="" style="word-wrap: break-word">{{ _('URL:') }} {{ res.url }}</p>
+          {% endif %}
+    {% endblock %}
+          <div class="prose notes" property="rdfs:label">
+            {% if res.description %}
+              {{ h.render_markdown(res.description) }}
+            {% endif %}
+            {% if not res.description and c.package.notes %}
+              <h3>{{ _('From the dataset abstract') }}</h3>
+              <blockquote>{{ h.markdown_extract(c.package.get('notes')) }}</blockquote>
+              <p>{% trans dataset=c.package.title, url=h.url_for(controller='package', action='read', id=c.package['name']) %}Source: <a href="{{ url }}">{{ dataset }}</a>{% endtrans %}
+            {% endif %}
+          </div>
+          {# render modal content if in the right format #}
+          {% if ("Data Quality Statement" not in res.name and "Metadata" not in res.name) and res.format not in exclude_formats %}
+          <!-- Modal -->
+          <div class="modal fade" id="resource_read_modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" >
+            <div class="modal-dialog" role="document">
+             <div class="modal-content">
+               <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                 <h3 class="modal-title" id="myModalLabel">Download Resource</h3>
+                  </div>
+                  <div class="modal-body">
+                  <p>This dataset is available under licence. Before using the data, please refer to the Metadata Statement for information about licensing conditions and attribution. </p>
+                    {#<p>This dataset is available under licence, as stated in the Metadata Statement.
+                     Please read the licence conditions in the resource file before using the data.</p>
+                  <p>Unless otherwise stated, please attribute "New South Wales Government (Office of Environment and Heritage)" in any publications using this data.</p>#}
+                  {#<div class="alert alert-warning" role="alert"><p><b>Note: </b>This process may take several minutes depending on your internet speed and device performance.
+                   Downloading large resources over mobile network may incur excess usage charges.
+                   Please contact your service provider to find out more about your data cap and usage restrictions.</p></div>#}
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Dismiss</button>
+                    <a type="button" href="{{res.url }}" class="custom-close btn btn-primary" >Acknowledge and Proceed to {{res.format }}</a>
+                  </div>
+                  </div>
+               </div>
+             </div>
+           {% endif %}   
+{% endblock %}
+
+ {% block resource_actions_inner %}
+            {% if h.check_access('package_update', {'id':pkg.id }) %}
+              <li>{% link_for _('Manage'), controller='package', action='resource_edit', id=pkg.name, resource_id=res.id, class_='btn', icon='wrench' %}</li>
+            {% endif %}
+            {% if res.url and h.is_url(res.url) %}
+              <li>
+                  {# data is likely a raw download #}
+                  {% if ("Data Quality Statement" not in res.name and "Metadata" not in res.name) and res.format not in exclude_formats %}
+                  <a type="button" class="btn btn-primary" data-toggle="modal" target="_blank" data-target="#resource_read_modal">
+                  <i class="icon-download"></i>{{ _('Go To')+' '+res.format }}
+                  </a>
+                  {# data is likely a metadata and not sitting in CKAN - open new window #}
+                  {% elif "SEED Web Map" not in res.format and SEEDdomain not in res.url%}
+                  <a href ="javaScript:void(0)" onclick="window.open({{ "'"+res.url|string+"'"}}, ''); return false" class="btn btn-primary resource-url-analytics"> <i class="icon-external-link"></i> {{ _('Go To')+' '+res.format }}</a>
+                  {# data is likely seed - has it been setup properly? #}
+                  {% elif "SEED Web Map" in res.format %}
+                   <a href="{{ mapurl }}" target="_blank" class="btn btn-primary resource-url-analytics"> <i class="icon-external-link"></i> {{ _('Go To')+' '+res.format }}</a>
+                  {% else %}
+                  {#{% print res.on_same_domain %}#}
+                  <a href="{{ res.url }}" target="_blank" class="btn btn-primary resource-url-analytics"> <i class="icon-external-link"></i> {{ _('Go To')+' '+res.format }} 
+                  </a> 
+                  {% endif %}
+              </li>
+            {% endif %}
+            {% if 'datastore' in g.plugins %}
+              <li>{% snippet 'package/snippets/data_api_button.html', resource=res, datastore_root_url=c.datastore_api %}</li>
+          {% endif %}
+{% endblock %}
+
+ {% block resource_view_content %}
+            <div class="resource-view">
+              {% set resource_preview = h.resource_preview(c.resource, c.package) %}
+              {% set views_created = res.has_views or resource_preview %}
+              {% if views_created %}
+                {% if resource_preview and not current_resource_view %}
+                  {{ h.resource_preview(c.resource, c.package) }}
+                {% else %}
+                  {% for resource_view in resource_views %}
+                    {% if resource_view == current_resource_view %}
+                      {% snippet 'package/snippets/resource_view.html',
+                         resource_view=resource_view,
+                         resource=c.resource,
+                         package=c.package
+                       %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              {% else %}
+                {# Views not created #}
+                <div class="module-content data-viewer-info">
+                  <p>Previews for {{ res.format }} are not supported on this site. Please access the resource directly ( 
+                  {# triggers popup #}
+                  {% if ("Data Quality Statement" not in res.name and "Metadata" not in res.name) and res.format not in exclude_formats %}
+                  <a  data-toggle="modal" target="_blank" data-target="#resource_read_modal">Go To {{res.format}}</a>
+                  {# if is seed web map #}
+                  {% elif "SEED Web Map" in res.format  %}
+                   <a href="{{mapurl}}">Go To {{res.format}}</a>
+                  {# otherwise behave normally - let javascript decide target blank or not #}
+                  {% else %}
+                   <a href="{{res.url}}">Go To {{res.format}}</a>
+                  {% endif %}
+                  ) or find out <a href="{{"http://"+SEEDdomain+"/edphome/using-seed/about-datasets.aspx"}}" target="_blank"> <i class="icon-info-sign"></i> How to View Datasets</a>.</p>
+                  {#{% if h.check_access('resource_view_create', {'resource_id': c.resource.id}) %}
+                    <p class="muted">
+                      <i class="icon-info-sign"></i>
+                      {{ _("Not seeing the views you were expecting?")}}
+                      <a href="javascript:void(0);" data-toggle="collapse" data-target="#data-view-info">
+                        {{ _('Click here for more information.') }}</a>
+                    </p>
+                    <div id="data-view-info" class="collapse">
+                      <p>{{ _('Here are some reasons you may not be seeing expected views:') }}</p>
+                      <ul>
+                        <li>{{ _("No view has been created that is suitable for this resource")}}</li>
+                        <li>{{ _("The site administrators may not have enabled the relevant view plugins")}}</li>
+                        <li>{{ _("If a view requires the DataStore, the DataStore plugin may not be enabled, or the data may not have been pushed to the DataStore, or the DataStore hasn't finished processing the data yet")}}</li>
+                      </ul>
+                    </div>
+                  {% endif %}#}
+                </div>
+              {% endif %}
+            </div>          
+
+
+          {% endblock %}
